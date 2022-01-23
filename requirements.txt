@@ -1,7 +1,7 @@
 scipy==1.5.4
 torch==1.7.1
 tqdm==4.60.0
-numpy==1.19.5
+numpy==1.21.0
 transformers==4.5.1
 jsonpickle==2.0.0
 scikit_learn==0.24.2
