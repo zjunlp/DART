@@ -1,0 +1,1 @@
+tensorboard --bind_all --port 9004 --logdir output/sst-5-inner-load-onestage/writer_logs/

@@ -1,0 +1,9 @@
+*pyc
+output/
+pretrain/
+data/
+.vscode/
+*.out
+wandb/
+visual/
+word*.json
