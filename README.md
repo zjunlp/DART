@@ -1,5 +1,5 @@
 # DART
-Implementation for paper *Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners*.
+Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners](https://arxiv.org/pdf/2108.13161.pdf)*.
 ## Environment
 - python@3.6
 - Use `pip install -r requirements.txt` to install dependencies.
@@ -51,3 +51,27 @@ optional arguments:
 ```
 - To train and evaluate with more customized configurations, use `cli.py`.
 - To analyze and visualize the results come from `inference.py`, use `visualize.py` and `visualize_word_emb.py`.
+## How to Cite
+```
+@article{DBLP:journals/corr/abs-2108-13161,
+  author    = {Ningyu Zhang and
+               Luoqiu Li and
+               Xiang Chen and
+               Shumin Deng and
+               Zhen Bi and
+               Chuanqi Tan and
+               Fei Huang and
+               Huajun Chen},
+  title     = {Differentiable Prompt Makes Pre-trained Language Models Better Few-shot
+               Learners},
+  journal   = {CoRR},
+  volume    = {abs/2108.13161},
+  year      = {2021},
+  url       = {https://arxiv.org/abs/2108.13161},
+  eprinttype = {arXiv},
+  eprint    = {2108.13161},
+  timestamp = {Thu, 13 Jan 2022 17:33:17 +0100},
+  biburl    = {https://dblp.org/rec/journals/corr/abs-2108-13161.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+```
