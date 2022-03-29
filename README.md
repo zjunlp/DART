@@ -53,25 +53,10 @@ optional arguments:
 - To analyze and visualize the results come from `inference.py`, use `visualize.py` and `visualize_word_emb.py`.
 ## How to Cite
 ```
-@article{DBLP:journals/corr/abs-2108-13161,
-  author    = {Ningyu Zhang and
-               Luoqiu Li and
-               Xiang Chen and
-               Shumin Deng and
-               Zhen Bi and
-               Chuanqi Tan and
-               Fei Huang and
-               Huajun Chen},
-  title     = {Differentiable Prompt Makes Pre-trained Language Models Better Few-shot
-               Learners},
-  journal   = {CoRR},
-  volume    = {abs/2108.13161},
-  year      = {2021},
-  url       = {https://arxiv.org/abs/2108.13161},
-  eprinttype = {arXiv},
-  eprint    = {2108.13161},
-  timestamp = {Thu, 13 Jan 2022 17:33:17 +0100},
-  biburl    = {https://dblp.org/rec/journals/corr/abs-2108-13161.bib},
-  bibsource = {dblp computer science bibliography, https://dblp.org}
+@article{zhang2021differentiable,
+  title={Differentiable prompt makes pre-trained language models better few-shot learners},
+  author={Zhang, Ningyu and Li, Luoqiu and Chen, Xiang and Deng, Shumin and Bi, Zhen and Tan, Chuanqi and Huang, Fei and Chen, Huajun},
+  journal={arXiv preprint arXiv:2108.13161},
+  year={2021}
 }
 ```
