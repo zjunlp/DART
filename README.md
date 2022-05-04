@@ -54,10 +54,12 @@ optional arguments:
 - To analyze and visualize the results come from `inference.py`, use `visualize.py` and `visualize_word_emb.py`.
 ## How to Cite
 ```
-@article{zhang2021differentiable,
-  title={Differentiable prompt makes pre-trained language models better few-shot learners},
-  author={Zhang, Ningyu and Li, Luoqiu and Chen, Xiang and Deng, Shumin and Bi, Zhen and Tan, Chuanqi and Huang, Fei and Chen, Huajun},
-  journal={arXiv preprint arXiv:2108.13161},
-  year={2021}
+@inproceedings{
+zhang2022differentiable,
+title={Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners},
+author={Ningyu Zhang and Luoqiu Li and Xiang Chen and Shumin Deng and Zhen Bi and Chuanqi Tan and Fei Huang and Huajun Chen},
+booktitle={International Conference on Learning Representations},
+year={2022},
+url={https://openreview.net/forum?id=ek9a0qIafW}
 }
 ```
