@@ -32,7 +32,7 @@ optional arguments:
   - `prompt_type="none"` refers to fixed verbalizer training, while `"inner"` refers to the method proposed in the paper. (`"inner2"` is deprecated 2-stage training)
 - To find optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
-  - **❗NOTE: to achieve best performance, you need to tune hyper parameters on each data split, which means the optimal hyper parameter combination is NOT shared among each split.**
+  - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) to use the corresponding automatic search results with different data split seeds.**
 ```bash
 $ python sweep.py -h
 usage: sweep.py [-h]
