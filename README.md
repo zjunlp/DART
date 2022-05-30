@@ -33,7 +33,7 @@ optional arguments:
   - `prompt_type="none"` refers to fixed verbalizer training, while `"inner"` refers to the method proposed in the paper. (`"inner2"` is deprecated 2-stage training)
 - To find optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
-  - **❗NOTE: to achieve best performance, you need to tune hyper parameters on each data split, which means the optimal hyper parameter combination is NOT shared among each split.**
+  - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) to use the corresponding automatic search results with different data split seeds.**
 ```bash
 $ python sweep.py -h
 usage: sweep.py [-h]
@@ -55,10 +55,12 @@ optional arguments:
 - To analyze and visualize the results come from `inference.py`, use `visualize.py` and `visualize_word_emb.py`.
 ## How to Cite
 ```
-@article{zhang2021differentiable,
-  title={Differentiable prompt makes pre-trained language models better few-shot learners},
-  author={Zhang, Ningyu and Li, Luoqiu and Chen, Xiang and Deng, Shumin and Bi, Zhen and Tan, Chuanqi and Huang, Fei and Chen, Huajun},
-  journal={arXiv preprint arXiv:2108.13161},
-  year={2021}
+@inproceedings{
+zhang2022differentiable,
+title={Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners},
+author={Ningyu Zhang and Luoqiu Li and Xiang Chen and Shumin Deng and Zhen Bi and Chuanqi Tan and Fei Huang and Huajun Chen},
+booktitle={International Conference on Learning Representations},
+year={2022},
+url={https://openreview.net/forum?id=ek9a0qIafW}
 }
 ```
