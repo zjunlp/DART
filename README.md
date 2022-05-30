@@ -1,5 +1,6 @@
 # DART
-Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners](https://arxiv.org/pdf/2108.13161.pdf)*.
+Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners](https://arxiv.org/pdf/2108.13161.pdf)*. *You can have the codes for **relation classification part** [here](https://github.com/zjunlp/KnowPrompt).*
+
 ## Environment
 - python@3.6
 - Use `pip install -r requirements.txt` to install dependencies.
