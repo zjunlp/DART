@@ -1,19 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""
-This script can be used to search the best hyper parameters for training.
-"""
-
 import os
 import logging
 import wandb
@@ -21,7 +5,7 @@ from argparse import ArgumentParser
 
 from cli import parser, process_args
 from utils import set_seed
-from model import TransformerModelWrapper
+from model_old import TransformerModelWrapper
 from config import load_pet_configs
 from data_utils import TRAIN_SET, DEV_SET, DEV32_SET, TEST_SET, load_examples, load_metrics
 
@@ -48,30 +32,26 @@ def main():
     task_dir = os.path.join('output', task, 'tune', encoder_type)
     output_dir = os.path.join(task_dir, data_split)
 
-    arguments = ['--model_type', 'roberta',
-                 '--embed_size', '1024',
+    arguments = ['--embed_size', '1024',
                  '--do_train', '--do_eval',
                  '--eval_set', 'test',
-                 '--overwrite_output_dir',
                  '--task_name', task.lower(),
                  '--data_dir', data_dir,
-                 '--pet_max_steps', '250',
                  '--model_name_or_path', 'roberta-large',
                  '--cache_dir', 'pretrain/roberta-large',
-                 '--pet_per_gpu_eval_batch_size', '8',
                  '--output_dir', output_dir,
                  '--learning_rate', str(lr),
                  '--weight_decay', str(wd),
                  '--prompt_encoder_type', encoder_type]
 
     if task in ['MNLI', 'MNLI-mm', 'SNLI', 'RTE-glue']:
-        arguments.extend(['--pet_max_seq_length', '256',
-                          '--pet_per_gpu_train_batch_size', str(bs),
-                          '--pet_gradient_accumulation_steps', '2'])
+        arguments.extend(['--max_seq_length', '256',
+                          '--per_gpu_train_batch_size', str(bs),
+                          '--gradient_accumulation_steps', '2'])
     else:
-        arguments.extend(['--pet_max_seq_length', '128',
-                          '--pet_per_gpu_train_batch_size', str(bs),
-                          '--pet_gradient_accumulation_steps', '1'])
+        arguments.extend(['--max_seq_length', '128',
+                          '--per_gpu_train_batch_size', str(bs),
+                          '--gradient_accumulation_steps', '1'])
 
     args = parser.parse_args(arguments)
     process_args(args)
@@ -98,16 +78,14 @@ def main():
     model.train(train_data=train_data,
                 dev_data=dev_data,
                 eval_data=eval_data,
-                pattern_iter_output_dir=args.output_dir,
+                output_dir=args.output_dir,
                 eval_config=eval_config,
                 per_gpu_train_batch_size=train_config.per_gpu_train_batch_size,
                 n_gpu=train_config.n_gpu,
                 num_train_epochs=train_config.num_train_epochs,
-                max_steps=args.pet_max_steps,
                 gradient_accumulation_steps=train_config.gradient_accumulation_steps,
                 weight_decay=args.weight_decay,
                 learning_rate=args.learning_rate,
-                fix_other_embeddings=False,
                 wandb_log=False)
 
     run.finish()

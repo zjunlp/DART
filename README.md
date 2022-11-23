@@ -8,30 +8,11 @@ Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Lang
 ## Data source
 - 16-shot GLUE dataset from [LM-BFF](https://github.com/princeton-nlp/LM-BFF).
 - Generated data consists of 5 random splits (13/21/42/87/100) for a task, each has 16 samples.
+  - The generation process follows LM-BFF [here](https://github.com/princeton-nlp/LM-BFF/blob/main/tools/generate_k_shot_data.py).
 ## How to run
-- To run across each 5 splits in a task, use `run.py`:
-  - In the arguments, `encoder="inner"` is the method proposed in the paper where verbalizers are other trainable tokens; `encoder="manual"` means verbalizers are selected fixed tokens; `encoder="lstm"` refers to the [P-Tuning](https://github.com/THUDM/P-tuning) method.
-```bash
-$ python run.py -h
-usage: run.py [-h] [--encoder {manual,lstm,inner,inner2}] [--task TASK]
-              [--num_splits NUM_SPLITS] [--repeat REPEAT] [--load_manual]
-              [--extra_mask_rate EXTRA_MASK_RATE]
-              [--output_dir_suffix OUTPUT_DIR_SUFFIX]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --encoder {manual,lstm,inner,inner2}
-  --task TASK
-  --num_splits NUM_SPLITS
-  --repeat REPEAT
-  --load_manual
-  --extra_mask_rate EXTRA_MASK_RATE
-  --output_dir_suffix OUTPUT_DIR_SUFFIX, -o OUTPUT_DIR_SUFFIX
-```
-- To train and evaluate on a single split with details recorded, use `inference.py`.
-  - Before running, [`task_name`, `label_list`, `prompt_type`] should be configured in the code.
-  - `prompt_type="none"` refers to fixed verbalizer training, while `"inner"` refers to the method proposed in the paper. (`"inner2"` is deprecated 2-stage training)
-- To find optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
+- To train / test with a config file containing specific parameters and data files, use `train.py --config config/[task_name].yml`.
+  - For details of parameters, please refer to task related config file.
+- To search optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
   - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) to use the corresponding automatic search results with different data split seeds.**
 ```bash

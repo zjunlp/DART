@@ -8,3 +8,5 @@ wandb/
 visual/
 word*.json
 *DS_Store
+*.ipynb
+.ipynb_checkpoints/

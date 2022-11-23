@@ -1,0 +1,36 @@
+# Data config
+task_name: SST2
+train_path: data/k-shot/SST-2/16-13/train.tsv
+dev_path: data/original/SST-2/dev.tsv
+test_path: data/k-shot/SST-2/16-13/test.tsv
+output_dir: output/sst2/
+pred_file: sst2.npy
+
+# Model config
+use_gpu: no
+pretrain_model: pretrain/albert-xxlarge-v2
+pet_method: pet  # pet, diffpet
+encoder_type: none  # emb, mlp, lstm, none
+
+# Train config
+do_train: yes
+seed: 3407
+max_seq_len: 128
+train_batch_size: 8
+test_batch_size: 32
+shuffle: yes
+warmup_ratio: 0.05
+weight_decay: 0.01
+learning_rate: 2.0e-5
+adam_epsilon: 1.0e-8
+max_grad_norm: 1.0
+max_train_epochs: 100
+early_stop_steps: 10
+grad_acc_steps: 1
+full_vocab_loss: no
+mask_rate: 0.1  # set 0.0 to disable mlm
+save_metric: 'accuracy'
+
+# Test config
+do_test: yes
+eval_every_steps: 20
