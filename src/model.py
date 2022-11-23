@@ -98,7 +98,7 @@ class DiffPET(PET):
         # Replace original token ids
         ids, flags = batch['input_ids'], batch['pet_flags']
         batch_size = len(ids)
-        ids[flags > 0] = self.pattern_ids.repeat(batch_size)
+        ids[flags == 2] = self.pattern_ids.repeat(batch_size)
         batch['input_ids'] = ids
         batch['pet_labels'] = self.label_ids[batch['label_ids']]
 
@@ -142,7 +142,7 @@ class MLM:
         # Set random masks
         mask_pos = (torch.rand_like(ids.float(), device=ids.device)
                     < self.mask_rate).long()
-        mask_pos.masked_fill_(flags != 0, 0)
+        mask_pos.masked_fill_(flags != 0, 0)  # Ignore unmaskable
         mask_labels = ids[mask_pos == 1]
         ids.masked_fill_(mask_pos, self.tokenizer.mask_token_id)
         conditions = (pet_labels == rand_labels).view(-1,

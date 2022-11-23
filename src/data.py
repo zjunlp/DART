@@ -190,7 +190,7 @@ def _encode(reader, sample, tokenizer, max_seq_len):
 
     # Concatenate
     len_seq1 = 0
-    flags = [1]  # 0 for maskable; 1 for unmaskable; -1 for PET mask
+    flags = [1]  # 0 = sentence; 1 = special; 2 = prompt; -1 = <mask>
     ids = [tokenizer.cls_token_id]
     for p, real_p in zip(reader.PATTERN, parts):
         if p == '[mask]':
@@ -199,7 +199,6 @@ def _encode(reader, sample, tokenizer, max_seq_len):
         elif p == '[text_a]':
             flags.extend([0] * len(real_p))
             ids.extend(real_p)
-            # End first sequence
             flags.append(1)
             ids.append(tokenizer.sep_token_id)
             len_seq1 = len(ids)
@@ -207,7 +206,7 @@ def _encode(reader, sample, tokenizer, max_seq_len):
             flags.extend([0] * len(real_p))
             ids.extend(real_p)
         else:
-            flags.extend([1] * len(real_p))
+            flags.extend([2] * len(real_p))
             ids.extend(real_p)
 
     # Padding to max length
