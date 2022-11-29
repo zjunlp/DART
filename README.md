@@ -1,36 +1,47 @@
 # DART
-Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners](https://arxiv.org/pdf/2108.13161.pdf)*.
+Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners](https://arxiv.org/pdf/2108.13161.pdf)*. 
+
 ## Environment
 - python@3.6
 - Use `pip install -r requirements.txt` to install dependencies.
 - `wandb` account is required if the user wants to search for best hyper-parameter combinations.
+
 ## Data source
 - 16-shot GLUE dataset from [LM-BFF](https://github.com/princeton-nlp/LM-BFF).
 - Generated data consists of 5 random splits (13/21/42/87/100) for a task, each has 16 samples.
+  - The generation process follows LM-BFF [here](https://github.com/princeton-nlp/LM-BFF/blob/main/tools/generate_k_shot_data.py).
+
 ## How to run
-- To run across each 5 splits in a task, use `run.py`:
-  - In the arguments, `encoder="inner"` is the method proposed in the paper where verbalizers are other trainable tokens; `encoder="manual"` means verbalizers are selected fixed tokens; `encoder="lstm"` refers to the [P-Tuning](https://github.com/THUDM/P-tuning) method.
+- To train / test with a config file containing specific parameters and data files, use `run.py --config config/[task_name]-[seed_split].yml`.
+  - For details of parameters, please refer to task related config file.
+  - Some configurations can be override with command line arguments:
 ```bash
-$ python run.py -h
-usage: run.py [-h] [--encoder {manual,lstm,inner,inner2}] [--task TASK]
-              [--num_splits NUM_SPLITS] [--repeat REPEAT] [--load_manual]
-              [--extra_mask_rate EXTRA_MASK_RATE]
-              [--output_dir_suffix OUTPUT_DIR_SUFFIX]
+python run.py -h
+usage: run.py [-h] [--config CONFIG] [--train_path TRAIN_PATH]
+              [--dev_path DEV_PATH] [--test_path TEST_PATH]
+              [--pet_method PET_METHOD] [--seed SEED]
+              [--train_batch_size TRAIN_BATCH_SIZE]
+              [--warmup_ratio WARMUP_RATIO] [--learning_rate LEARNING_RATE]
+              [--grad_acc_steps GRAD_ACC_STEPS]
+              [--full_vocab_loss FULL_VOCAB_LOSS] [--mask_rate MASK_RATE]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --encoder {manual,lstm,inner,inner2}
-  --task TASK
-  --num_splits NUM_SPLITS
-  --repeat REPEAT
-  --load_manual
-  --extra_mask_rate EXTRA_MASK_RATE
-  --output_dir_suffix OUTPUT_DIR_SUFFIX, -o OUTPUT_DIR_SUFFIX
+  --config CONFIG, -c CONFIG
+                        Basic configurations with default parameters
+  --train_path TRAIN_PATH
+  --dev_path DEV_PATH
+  --test_path TEST_PATH
+  --pet_method PET_METHOD
+  --seed SEED
+  --train_batch_size TRAIN_BATCH_SIZE
+  --warmup_ratio WARMUP_RATIO
+  --learning_rate LEARNING_RATE
+  --grad_acc_steps GRAD_ACC_STEPS
+  --full_vocab_loss FULL_VOCAB_LOSS
+  --mask_rate MASK_RATE
 ```
-- To train and evaluate on a single split with details recorded, use `inference.py`.
-  - Before running, [`task_name`, `label_list`, `prompt_type`] should be configured in the code.
-  - `prompt_type="none"` refers to fixed verbalizer training, while `"inner"` refers to the method proposed in the paper. (`"inner2"` is deprecated 2-stage training)
-- To find optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
+- To search optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
   - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) to use the corresponding automatic search results with different data split seeds.**
 ```bash
@@ -50,8 +61,6 @@ optional arguments:
   --batch_size {4,8,16,24,32} [{4,8,16,24,32} ...]
   --sweep_id SWEEP_ID
 ```
-- To train and evaluate with more customized configurations, use `cli.py`.
-- To analyze and visualize the results come from `inference.py`, use `visualize.py` and `visualize_word_emb.py`.
 ## How to Cite
 ```
 @inproceedings{

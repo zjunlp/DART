@@ -1,184 +1,213 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""
-This script can be used to search the best hyper parameters for training.
-"""
-
 import os
-import json
-import logging
-import statistics
+import numpy as np
+import torch
+from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+from torch.nn.utils.clip_grad import clip_grad_norm_
+from sklearn.metrics import precision_score
 from argparse import ArgumentParser
-from collections import defaultdict
+from transformers import AutoModelForMaskedLM, AutoTokenizer, set_seed
 
-from data_utils import load_metrics
-from cli import parser, process_args
-from train import train_pet
-
-logger = logging.getLogger('run')
+from src.utils import load_config, get_logger, get_optimizer_scheduler, compute_metrics
+from src.data import get_data_reader, get_data_loader
+from src.model import get_pet_mappers
 
 
-def get_best_results(metric, output_dir, result_file='results.json'):
-    best_score, best_result, best_dir = -1.0, {}, ''
-    for iter_dir in os.listdir(output_dir):
-        full_name = os.path.join(output_dir, iter_dir, result_file)
-        if os.path.exists(full_name):
-            result = json.load(open(full_name, 'r'))['eval_set']
-            if result[metric] > best_score:
-                best_score, best_result, best_dir = result[metric], result, iter_dir
+def evaluate(model, pet, config, dataloader):
+    all_labels, all_preds = [], []
 
-    return best_result, os.path.join(output_dir, best_dir)
+    model.eval()
+    test_loss = 0.
+    for batch in tqdm(dataloader, desc=f'[test]'):
+        with torch.no_grad():
+            pet.forward_step(batch)
+            loss = pet.get_loss(batch, config.full_vocab_loss)
+            test_loss += loss.item()
+        all_preds.append(pet.get_predictions(batch))
+        all_labels.append(batch["label_ids"])
+    all_preds = torch.cat(all_preds, dim=0).cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).cpu().numpy()
+    metrics = compute_metrics(all_labels, all_preds)
+    metrics['loss'] = test_loss
+
+    return all_preds, metrics
 
 
-def main():
-    run_parser = ArgumentParser()
-    run_parser.add_argument("--encoder",
-                            choices=['manual', 'lstm', 'inner', 'inner2'],
-                            default='manual')
-    run_parser.add_argument("--task", default='all')
-    run_parser.add_argument("--num_splits", type=int, default=-1)
-    run_parser.add_argument("--repeat", type=int, default=3)
-    run_parser.add_argument("--load_manual", action='store_true')
-    run_parser.add_argument("--extra_mask_rate", type=float, default=0.0)
-    run_parser.add_argument("--output_dir_suffix", "-o", type=str, default='')
+def train(config, **kwargs):
+    config.update(kwargs)
+    logger = get_logger('train', os.path.join(cfg.output_dir,
+                                              config.log_file))
+    logger.info(config)
+    set_seed(config.seed)
+    device = torch.device('cuda:0' if config.use_gpu else 'cpu')
 
-    run_args = run_parser.parse_args()
+    logger.info(f' * * * * * Training * * * * *')
+    # Load model
+    tokenizer = AutoTokenizer.from_pretrained(config.pretrain_model)
+    model = AutoModelForMaskedLM.from_pretrained(config.pretrain_model)
+    model.to(device)
 
-    seed_list = [13, 21, 42, 87, 100]
-    single_tasks = ['SST-2', 'sst-5', 'mr',
-                    'cr', 'mpqa', 'subj', 'trec', 'CoLA']
-    pair_tasks = ['MNLI', 'MNLI-mm', 'SNLI',
-                  'QNLI', 'RTE-glue', 'MRPC', 'QQP']  # TODO: STS-B
+    # Load data
+    reader = get_data_reader(config.task_name)
+    train_loader = get_data_loader(reader, config.train_path, 'train',
+                                   tokenizer, config.max_seq_len, config.train_batch_size, config.shuffle)
+    dev_loader = get_data_loader(reader, config.dev_path, 'dev',
+                                 tokenizer, config.max_seq_len, config.test_batch_size)
 
-    if run_args.task in single_tasks + pair_tasks:
-        tasks = [run_args.task]
-    elif run_args.task == 'single':
-        tasks = single_tasks
-    elif run_args.task == 'pair':
-        tasks = pair_tasks
-    elif run_args.task == 'all':
-        tasks = single_tasks + pair_tasks
-    else:
-        raise NotImplementedError
+    # Training with early stop
+    pet, mlm = get_pet_mappers(tokenizer, reader, model, device,
+                               config.pet_method, config.mask_rate)
 
-    if run_args.num_splits > 0:
-        seed_list = seed_list[:run_args.num_splits]
-    elif run_args.num_splits != -1:
-        raise NotImplementedError
+    writer = SummaryWriter(
+        config.output_dir) if config.use_tensorboard else None
+    global_step, best_score, early_stop_count = 0, -1., 0
+    config.max_train_steps = len(train_loader) * config.max_train_epochs
+    optimizer, scheduler = get_optimizer_scheduler(config, model)
 
-    assert run_args.repeat > 0
-    assert 0.0 <= run_args.extra_mask_rate < 0.5
+    for epoch in range(1, config.max_train_epochs + 1):
+        model.train()
+        model.zero_grad()
+        finish_flag = False
+        iterator = tqdm(enumerate(train_loader),
+                        desc=f'[train epoch {epoch}]', total=len(train_loader))
 
-    basic_arguments = ['--model_type', 'roberta',
-                       '--embed_size', '1024',
-                       '--do_train', '--do_eval',
-                       '--eval_set', 'test',
-                       '--overwrite_output_dir',
-                       '--extra_mask_rate', str(run_args.extra_mask_rate)]
+        for step, batch in iterator:
+            global_step += 1
+            # Whether do update (related with gradient accumulation)
+            do_update = global_step % config.grad_acc_steps == 0 or step == len(
+                train_loader) - 1
 
-    for task in tasks:
-        logger.info('=== Task: %s ===' % task)
-        best_result_all = defaultdict(list)
-        best_result_stage1 = defaultdict(list)
-        for seed in seed_list:
-            data_split = '16-%d' % seed
-            if task == 'MNLI-mm':
-                data_dir = os.path.join('data', 'k-shot', 'MNLI', data_split)
-            elif task == 'RTE-glue':
-                data_dir = os.path.join('data', 'k-shot', 'RTE', data_split)
-            else:
-                data_dir = os.path.join('data', 'k-shot', task, data_split)
-            # Change output directory name here!
-            task_dir = os.path.join('output', task, run_args.encoder)
-            if run_args.output_dir_suffix:
-                task_dir += '-' + run_args.output_dir_suffix
-            output_dir = os.path.join(task_dir, data_split)
-            arguments = ['--task_name', task,
-                         '--data_dir', data_dir,
-                         '--pet_per_gpu_eval_batch_size', '8',
-                         '--pet_max_steps', '250',
-                         '--pet_repetitions', str(run_args.repeat)]
+            # Train step
+            pet.forward_step(batch)
+            pet_loss = pet.get_loss(batch, config.full_vocab_loss)
+            if writer is not None:
+                writer.add_scalar('train pet loss',
+                                  pet_loss.item(), global_step)
+            pet_loss = pet_loss / config.grad_acc_steps
+            if mlm is not None:
+                mlm.prepare_input(batch)
+                mlm.forward_step(batch)
+                mlm_loss = mlm.get_loss(batch)
+                if writer is not None:
+                    writer.add_scalar('train mlm loss',
+                                      mlm_loss.item(), global_step)
+                pet_loss += mlm_loss / config.grad_acc_steps
 
-            # Whether load pre-trained weights from manual prompt
-            if run_args.load_manual:
-                manual_output_dir = os.path.join(
-                    'output', task, 'manual', data_split)
-                _, best_dir = get_best_results(
-                    load_metrics(task.lower())[-1], manual_output_dir)
-                arguments.extend(['--model_name_or_path', best_dir])
-                logger.info("Load trained weights from %s..." % best_dir)
-                output_dir = os.path.join(
-                    'output', task, run_args.encoder, 'manual', data_split)
-            else:
-                arguments.extend(['--model_name_or_path', 'roberta-large',
-                                  '--cache_dir', 'pretrain/roberta-large'])
-            arguments.extend(['--output_dir', output_dir])
+            # Update progress bar
+            preds = pet.get_predictions(batch)
+            precision = precision_score(batch['label_ids'], preds)
+            iterator.set_description(
+                f'[train] loss:{pet_loss.item():.3f}, precision:{precision:.2f}')
 
-            if task in ['MNLI', 'MNLI-mm', 'SNLI', 'RTE-glue']:
-                arguments.extend(['--pet_max_seq_length', '256',
-                                  '--pet_per_gpu_train_batch_size', '8',
-                                  '--pet_gradient_accumulation_steps', '2'])
-            else:
-                arguments.extend(['--pet_max_seq_length', '128',
-                                  '--pet_per_gpu_train_batch_size', '16',
-                                  '--pet_gradient_accumulation_steps', '1'])
+            # Backward & optimize step
+            pet_loss.backward()
+            if do_update:
+                clip_grad_norm_(model.parameters(), config.max_grad_norm)
+                optimizer.step()
+                optimizer.zero_grad()
+                scheduler.step()
 
-            # Set prompt encoder type
-            if run_args.encoder == 'inner2':
-                arguments.extend(
-                    ['--prompt_encoder_type', 'inner', '--two_stage_train'])
-            elif run_args.encoder == 'manual':
-                arguments.extend(['--prompt_encoder_type', 'none'])
-            else:
-                arguments.extend(['--prompt_encoder_type', run_args.encoder])
+            # Evaluation process
+            if global_step % config.eval_every_steps == 0:
+                _, scores = evaluate(model, pet, config, dev_loader)
+                logger.info(scores)
+                if writer is not None:
+                    for metric, score in scores.items():
+                        writer.add_scalar(f'dev {metric}', score, global_step)
+                assert config.save_metric in scores, f'Invalid metric name {config.save_metric}'
 
-            args = parser.parse_args(basic_arguments + arguments)
-            process_args(args)
-            logger.info(args)
+                curr_score = scores[config.save_metric]
+                # Save predictions & models
+                if curr_score > best_score:
+                    best_score = curr_score
+                    early_stop_count = 0
+                    logger.info(f'Save model at {config.output_dir}')
+                    model.save(config.output_dir)
+                else:
+                    early_stop_count += 1
 
-            if os.path.exists(os.path.join(output_dir, 'results.txt')):
-                logger.info("Path %s already exists, skipping it..." %
-                            output_dir)
-            else:
-                logger.info('--- Running data split: %s ---' % data_split)
-                train_pet(args)
+            # Early stop / end training
+            if config.early_stop_steps > 0 and early_stop_count >= config.early_stop_steps:
+                finish_flag = True
+                logger.info(f'Early stop at step {global_step}')
+                break
 
-            # Load best result for current data split
-            best_result, _ = get_best_results(args.metrics[-1], output_dir)
-            for metric, value in best_result.items():
-                best_result_all[metric].append(value)
-            if args.two_stage_train:
-                best_result, _ = get_best_results(
-                    args.metrics[-1], output_dir, 'results_stage1.json')
-                for metric, value in best_result.items():
-                    best_result_stage1[metric].append(value)
+        # Stop training
+        if finish_flag:
+            break
 
-        # Summary results
-        logger.info("\n\n========== RESULTS OF TASK: %s ==========" % task)
-        if args.two_stage_train:
-            logger.info("---------- STAGE[1] RESULTS ----------")
-            for metric, values in best_result_stage1.items():
-                mean = statistics.mean(values)
-                std = statistics.stdev(values) if len(values) > 1 else 0
-                logger.info("{}: {:.1f}({:.1f})\n".format(
-                    metric, mean * 100, std * 100))
-            logger.info("---------- STAGE[2] RESULTS ----------")
-        for metric, values in best_result_all.items():
-            mean = statistics.mean(values)
-            std = statistics.stdev(values) if len(values) > 1 else 0
-            logger.info("{}: {:.1f}({:.1f})\n".format(
-                metric, mean * 100, std * 100))
+    return best_score
+
+
+def test(config, **kwargs):
+    config.update(kwargs)
+    logger = get_logger('train', os.path.join(cfg.output_dir,
+                                              config.log_file))
+    logger.info(config)
+    device = torch.device('cuda:0' if config.use_gpu else 'cpu')
+    logger.info(f' * * * * * Testing * * * * *')
+
+    # Load model
+    tokenizer = AutoTokenizer.from_pretrained(config.output_dir)
+    model = AutoModelForMaskedLM.from_pretrained(config.output_dir)
+    model.to(device)
+
+    # Load data
+    reader = get_data_reader(config.task_name)
+    test_loader = get_data_loader(reader, config.test_path, 'test',
+                                  tokenizer, config.max_seq_len, config.test_batch_size)
+    pet, _ = get_pet_mappers(tokenizer, reader, model, device,
+                             config.pet_method, config.mask_rate)
+    writer = SummaryWriter(
+        config.output_dir) if config.use_tensorboard else None
+
+    preds, scores = evaluate(model, pet, config, test_loader)
+    logger.info(scores)
+    if writer is not None:
+        for metric, score in scores.items():
+            writer.add_scalar(f'dev {metric}', score, -1)
+
+    # Save predictions
+    if config.pred_file:
+        logger.info(f'Saved predictions at {config.pred_file}')
+        np.savetxt(os.path.join(config.output_dir,
+                                config.pred_file), preds, fmt='%.3e')
+
+    return scores
 
 
 if __name__ == '__main__':
-    main()
+    parser = ArgumentParser()
+    parser.add_argument('--config', '-c', type=str, default='config/sst2-13.yml',
+                        help='Basic configurations with default parameters')
+
+    # Override some configurations in command line arguments
+    parser.add_argument('--train_path', type=str, required=False)
+    parser.add_argument('--dev_path', type=str, required=False)
+    parser.add_argument('--test_path', type=str, required=False)
+    parser.add_argument('--pet_method', type=str, required=False)
+    parser.add_argument('--seed', type=int, required=False)
+    parser.add_argument('--train_batch_size', type=int, required=False)
+    parser.add_argument('--warmup_ratio', type=float, required=False)
+    parser.add_argument('--learning_rate', type=float, required=False)
+    parser.add_argument('--grad_acc_steps', type=int, required=False)
+    parser.add_argument('--full_vocab_loss', type=bool, required=False)
+    parser.add_argument('--mask_rate', type=float, required=False)
+    # Add more if necessary ...
+    args = parser.parse_args()
+
+    # Load basic configurations
+    cfg = load_config(args.config)
+    assert cfg.do_train or cfg.do_test, f'At least one of do_train or do_test should be set.'
+    os.makedirs(cfg.output_dir, exist_ok=True)
+
+    extra_kwargs = {}
+    for k, v in vars(args).items():
+        if v is not None:
+            extra_kwargs[k] = v
+
+    if cfg.do_train:
+        train(cfg, **extra_kwargs)
+
+    if cfg.do_test:
+        test(cfg, **extra_kwargs)

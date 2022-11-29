@@ -8,3 +8,5 @@ scikit_learn==0.24.2
 wandb==0.10.30
 matplotlib==3.3.4
 umap-learn==0.5.1
+attrdict==2.0.1
+pyyaml==5.3
