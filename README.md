@@ -14,7 +14,7 @@ Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Lang
 ## How to run
 - To train / test with a config file containing specific parameters and data files, use `run.py --config config/[task_name]-[seed_split].yml`.
   - For details of parameters, please refer to task related config file.
-  - Some configurations can be override with command line arguments:
+  - Some configurations can be overriden with command line arguments:
 ```bash
 python run.py -h
 usage: run.py [-h] [--config CONFIG] [--train_path TRAIN_PATH]

@@ -141,8 +141,8 @@ def train(config, **kwargs):
 
 def test(config, **kwargs):
     config.update(kwargs)
-    logger = get_logger('train', os.path.join(cfg.output_dir,
-                                              config.log_file))
+    logger = get_logger('test', os.path.join(cfg.output_dir,
+                                             config.log_file))
     logger.info(config)
     device = torch.device('cuda:0' if config.use_gpu else 'cpu')
     logger.info(f' * * * * * Testing * * * * *')
