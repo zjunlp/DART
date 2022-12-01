@@ -22,7 +22,7 @@ class PET:
             label_id = tokenizer.encode(
                 label, add_special_tokens=False, **tokenize_kwargs)[0]  # Force using one token
             label_ids.append(label_id)
-        self.label_ids = torch.LongTensor(label_ids, device=device)
+        self.label_ids = torch.tensor(label_ids, device=device).long()
 
     def forward_step(self, batch, logits_key='pet_logits'):
         # Perform PET forward on MLM model and store output back
@@ -77,10 +77,10 @@ class DiffPET(PET):
             curr_idx -= 1
 
         # Target token ids
-        self.pattern_ids = torch.LongTensor([p[1] for p in self.pattern_map],
-                                            device=device)
-        self.label_ids = torch.LongTensor([p[1] for p in self.label_map],
-                                          device=device)
+        self.pattern_ids = torch.tensor([p[1] for p in self.pattern_map],
+                                        device=device).long()
+        self.label_ids = torch.tensor([p[1] for p in self.label_map],
+                                      device=device).long()
         self._init_embedding()
 
     def _init_embedding(self, copy=True):
@@ -135,13 +135,13 @@ class MLM:
 
         # Set random pet labels
         pet_labels = batch['pet_labels']
-        rand_labels = torch.LongTensor(random.choices(
-            self.label_ids, k=batch_size), device=ids.device)
+        rand_labels = torch.tensor(random.choices(
+            self.label_ids, k=batch_size), device=ids.device).long()
         ids[flags == -1] = rand_labels
 
         # Set random masks
         mask_pos = (torch.rand_like(ids.float(), device=ids.device)
-                    < self.mask_rate).long()
+                    < self.mask_rate)
         mask_pos.masked_fill_(flags != 0, 0)  # Ignore unmaskable
         mask_labels = ids[mask_pos == 1]
         ids.masked_fill_(mask_pos, self.tokenizer.mask_token_id)
@@ -201,7 +201,8 @@ class PETEncoder(nn.Module):
         self.embedding.weight.data = new_weights
 
     def forward(self):
-        idx = torch.LongTensor(list(range(self.num_tokens))).to(self.device)
+        idx = torch.tensor(list(range(self.num_tokens)),
+                           device=self.device).long()
         emb = self.embedding(idx).unsqueeze(0)
         return self.encoder(emb)
 

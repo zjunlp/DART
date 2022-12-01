@@ -13,8 +13,8 @@ Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Lang
 
 ## How to run
 - To train / test with a config file containing specific parameters and data files, use `run.py --config config/[task_name]-[seed_split].yml`.
-  - For details of parameters, please refer to task related config file.
-  - Some configurations can be override with command line arguments:
+  - For details of parameters, please refer to `config/sample`.
+  - Some configurations can be overriden with command line arguments:
 ```bash
 python run.py -h
 usage: run.py [-h] [--config CONFIG] [--train_path TRAIN_PATH]
@@ -43,23 +43,14 @@ optional arguments:
 ```
 - To search optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
-  - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) to use the corresponding automatic search results with different data split seeds.**
+  - **NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) in that we search optimal sets of hyper-parameters on different data splits respectively.**
 ```bash
 $ python sweep.py -h
-usage: sweep.py [-h]
-                [--task {SST-2,sst-5,mr,cr,mpqa,subj,trec,CoLA,MNLI,MNLI-mm,SNLI,QNLI,RTE-glue,MRPC,QQP}]
-                [--encoder {none,mlp,lstm,inner,inner2}]
-                [--seed_split {13,21,42,87,100} [{13,21,42,87,100} ...]]
-                [--batch_size {4,8,16,24,32} [{4,8,16,24,32} ...]]
-                [--sweep_id SWEEP_ID]
+usage: sweep.py [-h] [--task_name TASK_NAME]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --task {SST-2,sst-5,mr,cr,mpqa,subj,trec,CoLA,MNLI,MNLI-mm,SNLI,QNLI,RTE-glue,MRPC,QQP}
-  --encoder {none,mlp,lstm,inner,inner2}
-  --seed_split {13,21,42,87,100} [{13,21,42,87,100} ...]
-  --batch_size {4,8,16,24,32} [{4,8,16,24,32} ...]
-  --sweep_id SWEEP_ID
+  --task_name TASK_NAME
 ```
 ## How to Cite
 ```

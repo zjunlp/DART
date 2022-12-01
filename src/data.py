@@ -140,6 +140,32 @@ class QQPReader(MRPCReader):
     LABEL_INDEX = 5
 
 
+def get_data_path(task, data_split):
+    # Get train, dev, test path for training on a specific task & split
+    task = task.lower()
+    if task in 'sst2':
+        return [f'data/k-shot/SST-2/16-{data_split}/train.tsv',
+                f'data/original/SST-2/dev.tsv',
+                f'data/k-shot/SST-2/16-{data_split}/test.tsv']
+    if task in ['mr', 'cr', 'subj', 'trec']:
+        return [f'data/k-shot/{task}/16-{data_split}/train.csv',
+                f'data/k-shot/{task}/16-{data_split}/dev.csv',
+                f'data/k-shot/{task}/16-{data_split}/test.csv']
+    if task == 'mnli':
+        return [f'data/k-shot/MNLI/16-{data_split}/train.tsv',
+                f'data/original/MNLI/dev_matched.tsv',
+                f'data/k-shot/MNLI/16-{data_split}/test_matched.tsv']
+    if task in ['snli', 'qnli', 'mrpc', 'qqp']:
+        return [f'data/k-shot/{task.upper()}/16-{data_split}/train.tsv',
+                f'data/original/{task.upper()}/16-{data_split}/dev.tsv'
+                f'data/k-shot/{task.upper()}/16-{data_split}/test.tsv']
+    if task == 'sst5':
+        return [f'data/k-shot/sst-5/16-{data_split}/train.csv',
+                f'data/k-shot/sst-5/16-{data_split}/dev.csv',
+                f'data/k-shot/sst-5/16-{data_split}/test.csv']
+    raise NotImplementedError(f'Unsupported task name: {task}')
+
+
 def get_data_reader(task):
     task = task.lower()
     if task in ['sst2']:
@@ -228,14 +254,14 @@ def _encode(reader, sample, tokenizer, max_seq_len):
             'pet_labels': verbalized_id, 'pet_flags': flags}
 
 
-def get_data_loader(reader, path, split, tokenizer, max_seq_len, batch_size, shuffle=False):
+def get_data_loader(reader, path, split, tokenizer, max_seq_len, batch_size, device, shuffle=False):
     def collate_fn(samples):
         encoded_outputs = [
             _encode(reader, sample, tokenizer, max_seq_len) for sample in samples]
         merged_outputs = {}
         for k in encoded_outputs[0].keys():
-            merged_outputs[k] = torch.LongTensor(
-                [outputs[k] for outputs in encoded_outputs])
+            merged_outputs[k] = torch.tensor(
+                [outputs[k] for outputs in encoded_outputs], device=device).long()
         return merged_outputs
 
     all_samples = reader.load_samples(path, split)
