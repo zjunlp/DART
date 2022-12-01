@@ -35,7 +35,7 @@ def evaluate(model, pet, config, dataloader):
 
 def train(config, **kwargs):
     config.update(kwargs)
-    logger = get_logger('train', os.path.join(cfg.output_dir,
+    logger = get_logger('train', os.path.join(config.output_dir,
                                               config.log_file))
     logger.info(config)
     set_seed(config.seed)
@@ -50,9 +50,11 @@ def train(config, **kwargs):
     # Load data
     reader = get_data_reader(config.task_name)
     train_loader = get_data_loader(reader, config.train_path, 'train',
-                                   tokenizer, config.max_seq_len, config.train_batch_size, config.shuffle)
+                                   tokenizer, config.max_seq_len, config.train_batch_size, device, config.shuffle)
     dev_loader = get_data_loader(reader, config.dev_path, 'dev',
-                                 tokenizer, config.max_seq_len, config.test_batch_size)
+                                 tokenizer, config.max_seq_len, config.test_batch_size, device)
+    test_loader = get_data_loader(reader, config.test_path, 'test',
+                                  tokenizer, config.max_seq_len, config.test_batch_size, device)
 
     # Training with early stop
     pet, mlm = get_pet_mappers(tokenizer, reader, model, device,
@@ -95,7 +97,8 @@ def train(config, **kwargs):
 
             # Update progress bar
             preds = pet.get_predictions(batch)
-            precision = precision_score(batch['label_ids'], preds)
+            precision = precision_score(
+                batch['label_ids'].cpu().numpy(), preds)
             iterator.set_description(
                 f'[train] loss:{pet_loss.item():.3f}, precision:{precision:.2f}')
 
@@ -109,22 +112,28 @@ def train(config, **kwargs):
 
             # Evaluation process
             if global_step % config.eval_every_steps == 0:
-                _, scores = evaluate(model, pet, config, dev_loader)
-                logger.info(scores)
-                if writer is not None:
-                    for metric, score in scores.items():
-                        writer.add_scalar(f'dev {metric}', score, global_step)
-                assert config.save_metric in scores, f'Invalid metric name {config.save_metric}'
+                for name, loader in [['dev', dev_loader], ['test', test_loader]]:
+                    _, scores = evaluate(model, pet, config, loader)
+                    logger.info(f'Metrics on {name}:')
+                    logger.info(scores)
+                    if writer is not None:
+                        for metric, score in scores.items():
+                            writer.add_scalar(
+                                f'{name} {metric}', score, global_step)
+                    assert config.save_metric in scores, f'Invalid metric name {config.save_metric}'
 
-                curr_score = scores[config.save_metric]
-                # Save predictions & models
-                if curr_score > best_score:
-                    best_score = curr_score
-                    early_stop_count = 0
-                    logger.info(f'Save model at {config.output_dir}')
-                    model.save(config.output_dir)
-                else:
-                    early_stop_count += 1
+                    if name == 'dev':
+                        curr_score = scores[config.save_metric]
+                        # Save predictions & models
+                        if curr_score > best_score:
+                            best_score = curr_score
+                            early_stop_count = 0
+                            logger.info(f'Save model at {config.output_dir}')
+                            tokenizer.save_pretrained(config.output_dir)
+                            model.save_pretrained(config.output_dir)
+                        else:
+                            early_stop_count += 1
+                            break
 
             # Early stop / end training
             if config.early_stop_steps > 0 and early_stop_count >= config.early_stop_steps:
@@ -141,7 +150,7 @@ def train(config, **kwargs):
 
 def test(config, **kwargs):
     config.update(kwargs)
-    logger = get_logger('test', os.path.join(cfg.output_dir,
+    logger = get_logger('test', os.path.join(config.output_dir,
                                              config.log_file))
     logger.info(config)
     device = torch.device('cuda:0' if config.use_gpu else 'cpu')
@@ -155,7 +164,7 @@ def test(config, **kwargs):
     # Load data
     reader = get_data_reader(config.task_name)
     test_loader = get_data_loader(reader, config.test_path, 'test',
-                                  tokenizer, config.max_seq_len, config.test_batch_size)
+                                  tokenizer, config.max_seq_len, config.test_batch_size, device)
     pet, _ = get_pet_mappers(tokenizer, reader, model, device,
                              config.pet_method, config.mask_rate)
     writer = SummaryWriter(
@@ -178,7 +187,7 @@ def test(config, **kwargs):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--config', '-c', type=str, default='config/sst2-13.yml',
+    parser.add_argument('--base_config', '-c', type=str, default='config/sample.yml',
                         help='Basic configurations with default parameters')
 
     # Override some configurations in command line arguments
@@ -197,7 +206,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Load basic configurations
-    cfg = load_config(args.config)
+    cfg = load_config(args.base_config)
     assert cfg.do_train or cfg.do_test, f'At least one of do_train or do_test should be set.'
     os.makedirs(cfg.output_dir, exist_ok=True)
 

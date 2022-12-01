@@ -4,7 +4,7 @@ train_path: data/k-shot/SST-2/16-13/train.tsv
 dev_path: data/original/SST-2/dev.tsv
 test_path: data/k-shot/SST-2/16-13/test.tsv
 output_dir: output/sst2/
-use_tensorboard: no
+use_tensorboard: yes
 log_file: sst2.log
 pred_file: sst2.npy
 
@@ -27,8 +27,8 @@ weight_decay: 0.01
 learning_rate: 2.0e-5
 adam_epsilon: 1.0e-8
 max_grad_norm: 1.0
-max_train_epochs: 100
-early_stop_steps: 10
+max_train_epochs: 20
+early_stop_steps: 5
 full_vocab_loss: no
 mask_rate: 0.1  # set 0.0 to disable mlm
 save_metric: 'accuracy'
