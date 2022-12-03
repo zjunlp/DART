@@ -17,11 +17,12 @@ def train_test():
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--task_name', type=str)
+    parser.add_argument('--task_name', type=str, required=True)
     args = parser.parse_args()
 
     task_name = args.task_name.lower()
-    save_metric = 'test f1' if task_name in ['mrpc', 'qqp'] else 'test acc'
+    save_metric = 'test f1_score' if task_name in [
+        'mrpc', 'qqp'] else 'test accuracy'
     base_config = load_config(f'config/sample.yml')
 
     # Prepare sweep config and get sweep id
