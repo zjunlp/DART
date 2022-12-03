@@ -14,16 +14,18 @@ def load_config(path, **kwargs):
 def get_logger(name, log_file=None):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
-    logger.addHandler(sh)
-    if log_file:
-        # New log will be appended, not overwrite
-        fh = logging.FileHandler(log_file)
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+
+    if not logger.hasHandlers():  # Prevent attaching multiple handlers
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        sh = logging.StreamHandler()
+        sh.setFormatter(formatter)
+        logger.addHandler(sh)
+        if log_file:
+            # New log will be appended, not overwrite
+            fh = logging.FileHandler(log_file)
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
 
     return logger
 

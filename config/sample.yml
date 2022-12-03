@@ -1,24 +1,28 @@
-# Data config
+# Data
 task_name: SST2
 train_path: data/k-shot/SST-2/16-13/train.tsv
 dev_path: data/k-shot/SST-2/16-13/dev.tsv
 test_path: data/k-shot/SST-2/16-13/test.tsv
+
+# Pretrained model path or name
+pretrain_model: pretrain/albert-xxlarge-v2
+
+# Output
 output_dir: output/sst2/
 log_file: sst2.log
-pred_file: sst2.npy
+pred_file: sst2.npy  # save predicted label ids
 
-# Model config
-pretrain_model: pretrain/albert-xxlarge-v2
+# Prompt
 pet_method: diffpet  # pet, diffpet
-full_vocab_loss: no
+full_vocab_loss: yes
 mask_rate: 0.1  # set 0.0 to disable auxiliary MLM loss
-mlm_loss_weight: 1.0  # weight of auxiliary MLM loss
+mlm_loss_weight: 0.0  # weight of auxiliary MLM loss
 # encoder_type: none  # emb, mlp, lstm, none
 
-# Train & evaluation config
+# Train & evaluation
 use_gpu: yes
+max_seq_len: 128
 seed: 3407  # random seed for training
-max_seq_len: 128  # maximum number of input sequence tokens
 shuffle: yes  # whether shuffle order of training samples
 train_batch_size: 8
 grad_acc_steps: 1
