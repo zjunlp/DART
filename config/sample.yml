@@ -1,27 +1,29 @@
 # Data config
 task_name: SST2
 train_path: data/k-shot/SST-2/16-13/train.tsv
-dev_path: data/original/SST-2/dev.tsv
+dev_path: data/k-shot/SST-2/16-13/dev.tsv
 test_path: data/k-shot/SST-2/16-13/test.tsv
 output_dir: output/sst2/
-use_tensorboard: yes
 log_file: sst2.log
 pred_file: sst2.npy
 
 # Model config
-use_gpu: yes
 pretrain_model: pretrain/albert-xxlarge-v2
 pet_method: diffpet  # pet, diffpet
+full_vocab_loss: no
+mask_rate: 0.1  # set 0.0 to disable auxiliary MLM loss
+mlm_loss_weight: 1.0  # weight of auxiliary MLM loss
 # encoder_type: none  # emb, mlp, lstm, none
 
-# Train config
-do_train: yes
-seed: 3407
-max_seq_len: 128
+# Train & evaluation config
+use_gpu: yes
+seed: 3407  # random seed for training
+max_seq_len: 128  # maximum number of input sequence tokens
+shuffle: yes  # whether shuffle order of training samples
 train_batch_size: 8
 grad_acc_steps: 1
+eval_every_steps: 20  # evaluation after weight update steps
 test_batch_size: 32
-shuffle: yes
 warmup_ratio: 0.05
 weight_decay: 0.01
 learning_rate: 2.0e-5
@@ -29,10 +31,4 @@ adam_epsilon: 1.0e-8
 max_grad_norm: 1.0
 max_train_epochs: 20
 early_stop_steps: 5
-full_vocab_loss: no
-mask_rate: 0.1  # set 0.0 to disable mlm
 save_metric: 'accuracy'
-
-# Test config
-do_test: yes
-eval_every_steps: 20

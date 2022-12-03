@@ -12,46 +12,45 @@ Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Lang
   - The generation process follows LM-BFF [here](https://github.com/princeton-nlp/LM-BFF/blob/main/tools/generate_k_shot_data.py).
 
 ## How to run
-- To train / test with a config file containing specific parameters and data files, use `run.py --config config/[task_name]-[seed_split].yml`.
-  - For details of parameters, please refer to `config/sample`.
-  - Some configurations can be overriden with command line arguments:
+- To train / test on a data split from a single task with specific parameters, use `run.py`.
+  - For customized training & evaluation, you can modify based on the sample configuration file `config/sample.yml`.
 ```bash
-python run.py -h
-usage: run.py [-h] [--config CONFIG] [--train_path TRAIN_PATH]
-              [--dev_path DEV_PATH] [--test_path TEST_PATH]
-              [--pet_method PET_METHOD] [--seed SEED]
-              [--train_batch_size TRAIN_BATCH_SIZE]
-              [--warmup_ratio WARMUP_RATIO] [--learning_rate LEARNING_RATE]
-              [--grad_acc_steps GRAD_ACC_STEPS]
-              [--full_vocab_loss FULL_VOCAB_LOSS] [--mask_rate MASK_RATE]
+$ python run.py -h  
+usage: run.py [-h] [--config CONFIG] [--do_train] [--do_test]
 
 optional arguments:
   -h, --help            show this help message and exit
   --config CONFIG, -c CONFIG
-                        Basic configurations with default parameters
-  --train_path TRAIN_PATH
-  --dev_path DEV_PATH
-  --test_path TEST_PATH
-  --pet_method PET_METHOD
-  --seed SEED
-  --train_batch_size TRAIN_BATCH_SIZE
-  --warmup_ratio WARMUP_RATIO
-  --learning_rate LEARNING_RATE
-  --grad_acc_steps GRAD_ACC_STEPS
-  --full_vocab_loss FULL_VOCAB_LOSS
-  --mask_rate MASK_RATE
+                        Configuration file storing all parameters
+  --do_train
+  --do_test
 ```
-- To search optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
+- To search optimal hyper-parameters for each task and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
   - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) in that we search optimal sets of hyper-parameters on different data splits respectively.**
 ```bash
 $ python sweep.py -h
-usage: sweep.py [-h] [--task_name TASK_NAME]
+usage: sweep.py [-h] [--project_name PROJECT_NAME] --task_name TASK_NAME
+                [--data_split {13,21,42,87,100}]
+                [--pretrain_model PRETRAIN_MODEL] [--pet_method {pet,diffpet}]
+                [--random_seed RANDOM_SEED] [--max_run MAX_RUN]
 
 optional arguments:
   -h, --help            show this help message and exit
+  --project_name PROJECT_NAME
+                        project name for sweep
   --task_name TASK_NAME
+  --data_split {13,21,42,87,100}
+                        few-shot split-id for GLUE dataset
+  --pretrain_model PRETRAIN_MODEL
+                        name or path for pretrained model
+  --pet_method {pet,diffpet}
+                        prompt encoding method
+  --random_seed RANDOM_SEED
+                        random seed for training
+  --max_run MAX_RUN     maximum tries for sweep
 ```
+
 ## How to Cite
 ```
 @inproceedings{

@@ -60,8 +60,7 @@ def train(config, **kwargs):
     pet, mlm = get_pet_mappers(tokenizer, reader, model, device,
                                config.pet_method, config.mask_rate)
 
-    writer = SummaryWriter(
-        config.output_dir) if config.use_tensorboard else None
+    writer = SummaryWriter(config.output_dir)
     global_step, best_score, early_stop_count = 0, -1., 0
     config.max_train_steps = len(train_loader) * config.max_train_epochs
     optimizer, scheduler = get_optimizer_scheduler(config, model)
@@ -82,18 +81,16 @@ def train(config, **kwargs):
             # Train step
             pet.forward_step(batch)
             pet_loss = pet.get_loss(batch, config.full_vocab_loss)
-            if writer is not None:
-                writer.add_scalar('train pet loss',
-                                  pet_loss.item(), global_step)
+            writer.add_scalar('train pet loss',
+                              pet_loss.item(), global_step)
             pet_loss = pet_loss / config.grad_acc_steps
-            if mlm is not None:
+            if mlm is not None and config.mlm_loss_weight > 0:
                 mlm.prepare_input(batch)
                 mlm.forward_step(batch)
                 mlm_loss = mlm.get_loss(batch)
-                if writer is not None:
-                    writer.add_scalar('train mlm loss',
-                                      mlm_loss.item(), global_step)
-                pet_loss += mlm_loss / config.grad_acc_steps
+                writer.add_scalar('train mlm loss',
+                                  mlm_loss.item(), global_step)
+                pet_loss += mlm_loss * config.mlm_loss_weight / config.grad_acc_steps
 
             # Update progress bar
             preds = pet.get_predictions(batch)
@@ -116,10 +113,9 @@ def train(config, **kwargs):
                     _, scores = evaluate(model, pet, config, loader)
                     logger.info(f'Metrics on {name}:')
                     logger.info(scores)
-                    if writer is not None:
-                        for metric, score in scores.items():
-                            writer.add_scalar(
-                                f'{name} {metric}', score, global_step)
+                    for metric, score in scores.items():
+                        writer.add_scalar(
+                            f'{name} {metric}', score, global_step)
                     assert config.save_metric in scores, f'Invalid metric name {config.save_metric}'
 
                     if name == 'dev':
@@ -133,7 +129,7 @@ def train(config, **kwargs):
                             model.save_pretrained(config.output_dir)
                         else:
                             early_stop_count += 1
-                            break
+                            break  # skip evaluation on test set
 
             # Early stop / end training
             if config.early_stop_steps > 0 and early_stop_count >= config.early_stop_steps:
@@ -167,17 +163,12 @@ def test(config, **kwargs):
                                   tokenizer, config.max_seq_len, config.test_batch_size, device)
     pet, _ = get_pet_mappers(tokenizer, reader, model, device,
                              config.pet_method, config.mask_rate)
-    writer = SummaryWriter(
-        config.output_dir) if config.use_tensorboard else None
 
     preds, scores = evaluate(model, pet, config, test_loader)
     logger.info(scores)
-    if writer is not None:
-        for metric, score in scores.items():
-            writer.add_scalar(f'dev {metric}', score, -1)
 
     # Save predictions
-    if config.pred_file:
+    if config.pred_file is not None:
         logger.info(f'Saved predictions at {config.pred_file}')
         np.savetxt(os.path.join(config.output_dir,
                                 config.pred_file), preds, fmt='%.3e')
@@ -187,36 +178,17 @@ def test(config, **kwargs):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--base_config', '-c', type=str, default='config/sample.yml',
-                        help='Basic configurations with default parameters')
-
-    # Override some configurations in command line arguments
-    parser.add_argument('--train_path', type=str, required=False)
-    parser.add_argument('--dev_path', type=str, required=False)
-    parser.add_argument('--test_path', type=str, required=False)
-    parser.add_argument('--pet_method', type=str, required=False)
-    parser.add_argument('--seed', type=int, required=False)
-    parser.add_argument('--train_batch_size', type=int, required=False)
-    parser.add_argument('--warmup_ratio', type=float, required=False)
-    parser.add_argument('--learning_rate', type=float, required=False)
-    parser.add_argument('--grad_acc_steps', type=int, required=False)
-    parser.add_argument('--full_vocab_loss', type=bool, required=False)
-    parser.add_argument('--mask_rate', type=float, required=False)
-    # Add more if necessary ...
+    parser.add_argument('--config', '-c', type=str, default='config/sample.yml',
+                        help='Configuration file storing all parameters')
+    parser.add_argument('--do_train', action='store_true')
+    parser.add_argument('--do_test', action='store_true')
     args = parser.parse_args()
 
-    # Load basic configurations
-    cfg = load_config(args.base_config)
-    assert cfg.do_train or cfg.do_test, f'At least one of do_train or do_test should be set.'
+    assert args.do_train or args.do_test, f'At least one of do_train or do_test should be set.'
+    cfg = load_config(args.config)
     os.makedirs(cfg.output_dir, exist_ok=True)
 
-    extra_kwargs = {}
-    for k, v in vars(args).items():
-        if v is not None:
-            extra_kwargs[k] = v
-
-    if cfg.do_train:
-        train(cfg, **extra_kwargs)
-
-    if cfg.do_test:
-        test(cfg, **extra_kwargs)
+    if args.do_train:
+        train(cfg)
+    if args.do_test:
+        test(cfg)
