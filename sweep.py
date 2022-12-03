@@ -37,7 +37,7 @@ if __name__ == '__main__':
     train_path, dev_path, test_path = get_data_path(task_name, args.data_split)
     base_config = AttrDict({
         'task_name': task_name, 'train_path': train_path, 'dev_path': dev_path, 'test_path': test_path, 'output_dir': output_dir,
-        'log_file': None, 'pred_file': '', 'use_gpu': True,
+        'log_file': f'{task_name}.log', 'pred_file': '', 'use_gpu': True,
         'pretrain_model': args.pretrain_model, 'pet_method': args.pet_method, 'seed': args.random_seed, 'max_seq_len': 128,
         'shuffle': True, 'eval_every_steps': 20, 'test_batch_size': 32, 'max_train_epochs': 20, 'early_stop_steps': 5,
         'save_metric': 'f1_score' if task_name in ['mrpc', 'qqp'] else 'accuracy'
