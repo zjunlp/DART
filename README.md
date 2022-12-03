@@ -43,7 +43,7 @@ optional arguments:
 ```
 - To search optimal hyper-parameters for each task-split and reproduce our result, please use `sweep.py`:
   - Please refer to documentation for [WandB](https://docs.wandb.ai/) for more details.
-  - **NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) in that we search optimal sets of hyper-parameters on different data splits respectively.**
+  - **❗NOTE: we follow [LM-BFF](https://github.com/princeton-nlp/LM-BFF) in that we search optimal sets of hyper-parameters on different data splits respectively.**
 ```bash
 $ python sweep.py -h
 usage: sweep.py [-h] [--task_name TASK_NAME]
