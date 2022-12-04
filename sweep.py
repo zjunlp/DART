@@ -52,15 +52,16 @@ if __name__ == '__main__':
             'name': 'test f1_score' if task_name in ['mrpc', 'qqp'] else 'test accuracy'
         },
         'parameters': {
+            'data_split': {'values': [args.data_split]},
             'warmup_ratio': {'values': [0.05]},
-            'learning_rate': {'values': [1e-5, 5e-5, 1e-4, 1e-3]},
-            'weight_decay': {'values': [0.0, 0.01, 0.05]},
+            'learning_rate': {'values': [1e-5, 5e-5, 1e-4]},
+            'weight_decay': {'values': [0.01]},
             'adam_epsilon': {'values': [1e-8]},
-            'train_batch_size': {'values': [4, 8, 16, 32]},
-            'grad_acc_steps': {'values': [1, 2, 4]},
+            'train_batch_size': {'values': [4, 8, 16]},
+            'grad_acc_steps': {'values': [1, 2]},
             'max_grad_norm': {'values': [1.0]},
             'full_vocab_loss': {'values': [True, False]},
-            'mask_rate': {'values': [0.0, 0.01, 0.05, 0.10]},
+            'mask_rate': {'values': [0.0, 0.05, 0.10]},
             'mlm_loss_weight': {'values': [0.0, 0.5, 1.0]}
         }
     }
@@ -69,3 +70,6 @@ if __name__ == '__main__':
 
     # Sweep all hyper parameters
     wandb.agent(sweep_id, function=train_wrapper, count=args.max_run)
+
+    # NOTE: this script does NOT save the optimal hyper parameter set itself;
+    # While running the sweep, track the results and manually check optimal hyper parameters on the wandb site (at your `DART` project).
