@@ -1,6 +1,6 @@
 # DART
 Implementation for ICLR2022 paper *[Differentiable Prompt Makes Pre-trained Language Models Better Few-shot Learners](https://arxiv.org/pdf/2108.13161.pdf)*. 
-- ❗NOTE: We provide a paper-list at [PromptKG](https://github.com/zjunlp/PromptKG).
+- ❗NOTE: The code has been reorganized and we also provide a paper-list at [PromptKG](https://github.com/zjunlp/PromptKG).
 
 ## Environment
 - python@3.6
